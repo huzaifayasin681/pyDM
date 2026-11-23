@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PyDM</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--fg:#1c2330;--mut:#667085;--line:#e3e6eb;--acc:#2563eb;--ok:#16a34a;--err:#dc2626}
+@media(prefers-color-scheme:dark){:root{--bg:#12151b;--card:#1b2029;--fg:#e6e9ef;--mut:#98a2b3;--line:#2a3140;--acc:#5b8cff;--ok:#34d399;--err:#f87171}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px system-ui,sans-serif}
+main{max-width:980px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:0 0 12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input,select,button{font:inherit;padding:7px 10px;border-radius:7px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
+input[type=text],input[type=url]{flex:1;min-width:200px}
+button{cursor:pointer}button.p{background:var(--acc);border-color:var(--acc);color:#fff}
+table{width:100%;border-collapse:collapse}
+td,th{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{color:var(--mut);font-weight:500;font-size:12px}
+.name{max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden;min-width:120px}
+.bar>i{display:block;height:100%;background:var(--acc)}
+.st-done{color:var(--ok)}.st-error{color:var(--err)}.mut{color:var(--mut);font-size:12px}
+label{display:flex;gap:6px;align-items:center}
+details summary{cursor:pointer;font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:10px}
+#msg{color:var(--err);min-height:18px;margin-top:6px}
+</style></head><body><main>
+<h1>PyDM <span class="mut" id="win"></span></h1>
+
+<div class="card">
+  <div class="row">
+    <input type="url" id="url" placeholder="Paste a download or video URL">
+    <label><input type="checkbox" id="vid"> video (yt-dlp)</label>
+    <button id="qbtn" title="Look up available resolutions">Qualities</button>
+    <select id="qual"><option value="best">Best</option></select>
+    <input type="datetime-local" id="when" title="Schedule start (optional)">
+    <button class="p" id="add">Add</button>
+  </div>
+  <div id="msg"></div>
+</div>
+
+<div class="card"><table>
+  <thead><tr><th>Name</th><th>Status</th><th>Progress</th><th>Speed</th><th></th></tr></thead>
+  <tbody id="jobs"></tbody>
+</table><div class="mut" id="empty">No downloads yet.</div></div>
+
+<div class="card"><details><summary>Settings</summary>
+  <div class="grid">
+    <label>Folder <input type="text" id="c_dir"></label>
+    <label>Connections <input type="number" id="c_conn" min="1" max="32"></label>
+    <label>Parallel jobs <input type="number" id="c_par" min="1" max="10"></label>
+    <label>Speed limit (KB/s, 0=none) <input type="number" id="c_lim" min="0"></label>
+    <label>Only download from <input type="time" id="c_w1"></label>
+    <label>until <input type="time" id="c_w2"></label>
+    <label><input type="checkbox" id="c_clip"> Watch clipboard for links</label>
+  </div>
+  <div class="row" style="margin-top:10px"><button class="p" id="save">Save settings</button>
+  <span class="mut">Leave both times empty for no schedule window.</span></div>
+</details></div>
+
+<script>
+const TOKEN="__TOKEN__";
+const $=id=>document.getElementById(id);
+async function api(path,body){
+  const r=await fetch(path,{method:body?'POST':'GET',
+    headers:{'X-PyDM-Token':TOKEN,'Content-Type':'application/json'},
+    body:body?JSON.stringify(body):undefined});
+  const j=await r.json(); if(!r.ok) throw new Error(j.error||r.status); return j;
+}
+function hum(n){n=+n||0;const u=['B','KB','MB','GB','TB'];let i=0;while(n>=1024&&i<4){n/=1024;i++}return (i?n.toFixed(1):n)+' '+u[i]}
+function el(tag,props,...kids){const e=document.createElement(tag);Object.assign(e,props||{});kids.forEach(k=>e.append(k));return e}
+function btn(label,jid,act){const b=el('button',{textContent:label});b.onclick=async()=>{try{await api(`/api/jobs/${jid}/${act}`,{});load()}catch(e){$('msg').textContent=e.message}};return b}
+async function load(){
+  try{
+    const d=await api('/api/jobs');
+    $('win').textContent=d.window_open?'':'(outside schedule window - paused)';
+    const tb=$('jobs');tb.replaceChildren();
+    $('empty').style.display=d.jobs.length?'none':'';
+    for(const j of d.jobs.slice().reverse()){
+      const pct=j.size?Math.min(100,j.done/j.size*100):(j.status==='done'?100:0);
+      const bar=el('div',{className:'bar'},el('i',{style:`width:${pct}%`}));
+      const stext=j.status+(j.status==='queued'&&j.start_at>Date.now()/1000?' @ '+new Date(j.start_at*1000).toLocaleString():'');
+      const acts=el('td');
+      if(['pending','paused','error'].includes(j.status))acts.append(btn('Start',j.id,'start'));
+      if(['queued','downloading'].includes(j.status))acts.append(btn('Pause',j.id,'pause'));
+      acts.append(' ',btn('Remove',j.id,'remove'));
+      tb.append(el('tr',{},
+        el('td',{},el('div',{className:'name',textContent:j.name||j.url,title:j.url}),
+           j.error?el('div',{className:'mut st-error',textContent:j.error}):'',
+           j.note?el('div',{className:'mut',textContent:j.note}):''),
+        el('td',{className:'st-'+j.status,textContent:stext}),
+        el('td',{},bar,el('span',{className:'mut',textContent:j.size?`${hum(j.done)} / ${hum(j.size)}`:hum(j.done)})),
+        el('td',{textContent:j.speed?hum(j.speed)+'/s':''}),acts));
+    }
+  }catch(e){$('msg').textContent=e.message}
+}
+$('qbtn').onclick=async()=>{
+  $('msg').textContent='Reading video info...';
+  try{
+    const f=await api('/api/formats?url='+encodeURIComponent($('url').value.trim()));
+    const s=$('qual');s.replaceChildren(el('option',{value:'best',textContent:'Best'}));
+    f.heights.forEach(h=>s.append(el('option',{value:String(h),textContent:h+'p'})));
+    if(f.audio)s.append(el('option',{value:'audio',textContent:'Audio only (mp3)'}));
+    $('vid').checked=true;
+    $('msg').textContent=(f.live?'LIVE: ':'')+f.title;$('msg').style.color='var(--mut)';
+  }catch(e){$('msg').style.color='';$('msg').textContent=e.message}
+};
+$('add').onclick=async()=>{
+  $('msg').textContent='';
+  const w=$('when').value;
+  try{
+    await api('/api/add',{url:$('url').value.trim(),kind:$('vid').checked?'video':undefined,quality:$('qual').value,
+      start_at:w?new Date(w).getTime()/1000:0});
+    $('url').value='';load();
+  }catch(e){$('msg').textContent=e.message}
+};
+async function loadCfg(){
+  const c=await api('/api/config');
+  $('c_dir').value=c.download_dir;$('c_conn').value=c.connections;$('c_par').value=c.max_parallel;
+  $('c_lim').value=Math.round(c.limit/1024);$('c_clip').checked=c.clipboard;
+  $('c_w1').value=c.window?c.window[0]:'';$('c_w2').value=c.window?c.window[1]:'';
+}
+$('save').onclick=async()=>{
+  const w1=$('c_w1').value,w2=$('c_w2').value;
+  try{
+    await api('/api/config',{download_dir:$('c_dir').value,connections:+$('c_conn').value,
+      max_parallel:+$('c_par').value,limit:+$('c_lim').value*1024,clipboard:$('c_clip').checked,
+      window:(w1&&w2)?[w1,w2]:null});
+    $('msg').textContent='';loadCfg();
+  }catch(e){$('msg').textContent=e.message}
+};
+loadCfg();load();setInterval(load,1000);
+</script></main></body></html>

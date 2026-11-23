@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PyDM Settings</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  body { background: var(--bg2); font-size: 14px; }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 32px 20px 60px; }
+  .hero { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; }
+  .hero img { width: 48px; height: 48px; }
+  .hero h1 { margin: 0; font-size: 22px; }
+  .hero p { margin: 2px 0 0; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 28px 4px 8px; }
+  .group { background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .opt { display: flex; align-items: center; gap: 16px; padding: 14px 16px; border-top: 1px solid var(--line); }
+  .opt:first-child { border-top: 0; }
+  .opt .t { font-weight: 600; }
+  .opt .d { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .opt.col { flex-direction: column; align-items: stretch; gap: 8px; }
+  input[type=text], input[type=number], input[type=password], textarea {
+    font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; }
+  input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+  textarea { width: 100%; min-height: 70px; resize: vertical; font-family: ui-monospace, monospace; font-size: 13px; }
+  input[type=number] { width: 110px; }
+  .unit { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+  .conn { display: flex; align-items: center; gap: 12px; }
+  details summary { cursor: pointer; color: var(--muted); padding: 12px 16px; border-top: 1px solid var(--line); }
+  details .opt { border-top: 1px dashed var(--line); }
+  .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(80px); background: #1d1f24; color: #fff;
+    padding: 9px 18px; border-radius: 999px; font-weight: 600; transition: transform .2s, opacity .2s; box-shadow: 0 6px 24px #0004;
+    opacity: 0; visibility: hidden; }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; visibility: visible; }
+  code { background: var(--bg2); padding: 1px 6px; border-radius: 5px; font-size: 12.5px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <img src="icons/icon128.png" alt="">
+    <div>
+      <h1>PyDM Settings</h1>
+      <p class="muted">Fast, resumable downloads for files and videos.</p>
+    </div>
+  </div>
+
+  <h2>Connection</h2>
+  <div class="group">
+    <div class="opt">
+      <div class="grow">
+        <div class="conn"><span class="t">PyDM app</span><span class="pill" id="status">Checking…</span></div>
+        <div class="d" id="statusSub">The extension connects to PyDM on this computer automatically.</div>
+      </div>
+      <button class="btn" id="pair">Reconnect</button>
+    </div>
+    <details>
+      <summary>Advanced</summary>
+      <div class="opt">
+        <div class="grow"><div class="t">Port</div><div class="d">Change only if you changed it in PyDM.</div></div>
+        <input type="number" id="port" min="1" max="65535">
+      </div>
+      <div class="opt">
+        <div class="grow"><div class="t">Pairing token</div><div class="d">Filled in automatically. Stored only in this browser.</div></div>
+        <input type="password" id="token" style="width:220px" autocomplete="off">
+      </div>
+    </details>
+  </div>
+
+  <h2>Downloads</h2>
+  <div class="group">
+    <div class="opt">
+      <div class="grow">
+        <div class="t">Take over browser downloads</div>
+        <div class="d">Every file you download in Chrome goes to PyDM: faster multi-connection downloads that
+          resume after a crash or lost connection. If PyDM can't fetch a file, Chrome downloads it instead.</div>
+      </div>
+      <label class="switch"><input type="checkbox" id="intercept"><span></span></label>
+    </div>
+    <div class="opt">
+      <div class="grow"><div class="t">Leave small files to Chrome</div><div class="d">Files smaller than this are downloaded by Chrome. 0 = send everything.</div></div>
+      <label class="unit"><input type="number" id="minSizeKB" min="0" step="100"> KB</label>
+    </div>
+    <div class="opt col">
+      <div><div class="t">Never take over from these sites</div><div class="d">One site per line, e.g. <code>drive.google.com</code></div></div>
+      <textarea id="excludeSites" spellcheck="false" placeholder="example.com"></textarea>
+    </div>
+    <div class="opt col">
+      <div><div class="t">Leave these file types to Chrome</div><div class="d">Extensions separated by spaces, e.g. <code>jpg png torrent</code></div></div>
+      <input type="text" id="excludeTypes" spellcheck="false" placeholder="jpg png">
+    </div>
+  </div>
+
+  <h2>Video</h2>
+  <div class="group">
+    <div class="opt">
+      <div class="grow">
+        <div class="t">“Download video” button on pages</div>
+        <div class="d">Shows a button over videos on YouTube, TikTok, Instagram, Facebook, X and other sites.</div>
+      </div>
+      <label class="switch"><input type="checkbox" id="videoButton"><span></span></label>
+    </div>
+  </div>
+
+  <h2>Tips</h2>
+  <div class="group">
+    <div class="opt"><div class="d">Right-click any link → <b>Download with PyDM</b>. Right-click a video → <b>Download this video with PyDM</b>.
+      Right-click the PyDM toolbar icon to quickly switch download takeover on or off.</div></div>
+  </div>
+</div>
+<div class="toast" id="toast">Saved</div>
+<script src="options.js"></script>
+</body>
+</html>
