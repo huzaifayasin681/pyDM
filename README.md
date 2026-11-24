@@ -6,6 +6,10 @@ resumes after crashes or a lost connection, grabs videos from YouTube, TikTok, I
 
 It is written in plain Python (standard library only) with a native GTK4 / libadwaita desktop app.
 
+![PyDM desktop app](docs/pydm-app.png)
+
+<img src="docs/pydm-extension.png" alt="PyDM Chrome extension popup" width="320">
+
 ---
 
 ## Features
@@ -193,3 +197,11 @@ python3 pydmd.py --port 6801  # different port
 | Video downloads without sound or won't merge | Install `ffmpeg` |
 | A site's downloads shouldn't go to PyDM | Add the site under extension **Options → Never take over from these sites** |
 | Changes to the code don't show up | Re-run `./install.sh`, quit PyDM completely (menu → *Quit PyDM Completely*) and reopen it |
+
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for ideas to start with, such as Firefox extension support and .deb / AppImage packaging.
+
+## License
+
+PyDM is released under the [MIT License](LICENSE).
